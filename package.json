@@ -1,0 +1,14 @@
+{
+  "name": "quiz-room",
+  "version": "1.0.0",
+  "description": "No-login office quiz with code questions, answer sheets and a leaderboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test.js"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.39.0",
+    "express": "^4.19.2"
+  }
+}

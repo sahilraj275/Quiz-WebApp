@@ -1,0 +1,7 @@
+node_modules
+data.json
+data.json.tmp
+quiz-data.json
+quiz-data.json.tmp
+.vercel
+.env*

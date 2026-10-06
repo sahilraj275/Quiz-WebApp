@@ -1,0 +1,266 @@
+[
+  {
+    "type": "mcq",
+    "text": "When a JavaScript program starts, what is created first?",
+    "options": [
+      "Function Execution Context",
+      "Global Execution Context",
+      "Event Loop",
+      "Callback Queue"
+    ],
+    "answer": 1,
+    "explanation": "The Global Execution Context (GEC) is created first and pushed onto the call stack. It runs in two phases: memory creation (hoisting) and code execution.",
+    "tag": "GEC"
+  },
+  {
+    "type": "mcq",
+    "text": "What happens in the memory creation phase of an execution context?",
+    "options": [
+      "Code runs line by line",
+      "var variables are set to undefined and function declarations are stored in full",
+      "Only let and const are allocated",
+      "Callbacks are pushed to the queue"
+    ],
+    "answer": 1,
+    "explanation": "In the creation phase, var gets undefined, function declarations are stored whole, and let/const are allocated but stay uninitialized (TDZ).",
+    "tag": "GEC"
+  },
+  {
+    "type": "output",
+    "text": "What does this print?",
+    "code": "console.log(x);\nvar x = 5;\nconsole.log(x);",
+    "answer": "undefined\n5",
+    "explanation": "x is hoisted and set to undefined in the memory phase, then assigned 5 during execution.",
+    "tag": "Hoisting"
+  },
+  {
+    "type": "output",
+    "text": "What does this print?",
+    "code": "console.log(typeof foo);\nvar foo = 'bar';\nfunction foo() {}",
+    "answer": "function",
+    "explanation": "In the creation phase, the function declaration takes priority over var foo. The assignment 'bar' only happens after the log.",
+    "tag": "Hoisting"
+  },
+  {
+    "type": "mcq",
+    "text": "What is the output?",
+    "code": "console.log(a);\nlet a = 10;",
+    "options": [
+      "undefined",
+      "10",
+      "ReferenceError: Cannot access 'a' before initialization",
+      "null"
+    ],
+    "answer": 2,
+    "explanation": "let is hoisted but stays in the Temporal Dead Zone until its declaration line runs.",
+    "tag": "Hoisting"
+  },
+  {
+    "type": "mcq",
+    "text": "In a browser (normal script, not a module), what is logged?",
+    "code": "var a = 1;\nlet b = 2;\nconsole.log(window.a, window.b);",
+    "options": [
+      "1 2",
+      "1 undefined",
+      "undefined 2",
+      "undefined undefined"
+    ],
+    "answer": 1,
+    "explanation": "Global var becomes a property of the global object (window). Global let/const live in a separate script scope, not on window.",
+    "tag": "GEC"
+  },
+  {
+    "type": "output",
+    "text": "What does this print?",
+    "code": "if (true) {\n  var x = 1;\n  let y = 2;\n}\nconsole.log(x);\nconsole.log(typeof y);",
+    "answer": "1\nundefined",
+    "explanation": "var is function scoped, so x leaks out of the block. let is block scoped, so y doesn't exist outside it, and typeof on an undeclared name returns 'undefined'.",
+    "tag": "Scope"
+  },
+  {
+    "type": "output",
+    "text": "What does this print?",
+    "code": "let count = 1;\n{\n  let count = 2;\n  console.log(count);\n}\nconsole.log(count);",
+    "answer": "2\n1",
+    "explanation": "The inner count shadows the outer one only inside the block.",
+    "tag": "Scope"
+  },
+  {
+    "type": "output",
+    "text": "What does this print? (scope chain)",
+    "code": "var a = 'global';\nfunction outer() {\n  var a = 'outer';\n  function inner() {\n    console.log(a);\n  }\n  inner();\n}\nouter();",
+    "answer": "outer",
+    "explanation": "inner has no a of its own, so it looks one level up the scope chain, finds outer's a and stops there.",
+    "tag": "Scope chain"
+  },
+  {
+    "type": "mcq",
+    "text": "What is logged? (classic interview question on lexical scope)",
+    "code": "var x = 1;\nfunction print() {\n  console.log(x);\n}\nfunction run() {\n  var x = 2;\n  print();\n}\nrun();",
+    "options": [
+      "1",
+      "2",
+      "undefined",
+      "ReferenceError"
+    ],
+    "answer": 0,
+    "explanation": "Scope is lexical: it depends on where print is written (global), not where it is called. print's outer environment is global, where x is 1.",
+    "tag": "Lexical environment"
+  },
+  {
+    "type": "mcq",
+    "text": "What is logged (non-strict mode)?",
+    "code": "function f() {\n  y = 5;\n}\nf();\nconsole.log(y);",
+    "options": [
+      "undefined",
+      "5",
+      "ReferenceError",
+      "TypeError"
+    ],
+    "answer": 1,
+    "explanation": "Assigning to an undeclared variable creates an accidental global in non-strict mode. With 'use strict' it throws a ReferenceError.",
+    "tag": "Scope"
+  },
+  {
+    "type": "mcq",
+    "text": "A lexical environment is made of:",
+    "options": [
+      "Only the variables of the current function",
+      "The call stack and the heap",
+      "A local environment record plus a reference to the outer (parent) lexical environment",
+      "The global object only"
+    ],
+    "answer": 2,
+    "explanation": "Each lexical environment holds its own bindings plus a link to its parent. Following those links is the scope chain.",
+    "tag": "Lexical environment"
+  },
+  {
+    "type": "mcq",
+    "text": "What is a closure?",
+    "options": [
+      "A function that runs immediately",
+      "A function bundled with references to its outer lexical environment, even after the outer function has returned",
+      "A way to close the browser tab",
+      "A function with no parameters"
+    ],
+    "answer": 1,
+    "explanation": "A closure lets an inner function keep accessing the variables of its outer function after that function has finished.",
+    "tag": "Closures"
+  },
+  {
+    "type": "output",
+    "text": "What does this print?",
+    "code": "function counter() {\n  let c = 0;\n  return function () {\n    return ++c;\n  };\n}\nconst a = counter();\nconst b = counter();\nconsole.log(a(), a(), b());",
+    "answer": "1 2 1",
+    "explanation": "Each call to counter() creates a new c. a and b have separate closures.",
+    "tag": "Closures"
+  },
+  {
+    "type": "output",
+    "text": "What does this print? (most asked closure question)",
+    "code": "for (var i = 0; i < 3; i++) {\n  setTimeout(() => console.log(i), 0);\n}",
+    "answer": "3\n3\n3",
+    "explanation": "var gives one shared i for the whole loop. By the time the callbacks run, the loop has finished and i is 3.",
+    "tag": "Closures"
+  },
+  {
+    "type": "mcq",
+    "text": "Without changing var to let, which change makes the previous loop print 0 1 2?",
+    "options": [
+      "Use setTimeout(..., 1000)",
+      "Wrap it in an IIFE: (function (j) { setTimeout(() => console.log(j), 0); })(i);",
+      "Move console.log outside the loop",
+      "Use i++ inside console.log"
+    ],
+    "answer": 1,
+    "explanation": "The IIFE creates a new scope per iteration, and j captures the current value of i. Using let does the same thing automatically, since it creates a new binding per iteration.",
+    "tag": "Closures"
+  },
+  {
+    "type": "output",
+    "text": "What does this print?",
+    "code": "function make() {\n  let x = 1;\n  const f = () => console.log(x);\n  x = 2;\n  return f;\n}\nmake()();",
+    "answer": "2",
+    "explanation": "A closure captures a reference to the variable, not a copy of its value at the time it was created.",
+    "tag": "Closures"
+  },
+  {
+    "type": "output",
+    "text": "What does this print? (data privacy with closures)",
+    "code": "function bank() {\n  let balance = 100;\n  return {\n    deposit(n) { balance += n; },\n    get() { return balance; }\n  };\n}\nconst acc = bank();\nacc.deposit(50);\nconsole.log(acc.balance, acc.get());",
+    "answer": "undefined 150",
+    "explanation": "balance is private. It can only be reached through the closure methods, not as a property.",
+    "tag": "Closures"
+  },
+  {
+    "type": "output",
+    "text": "What does this print? (implement once())",
+    "code": "function once(fn) {\n  let done = false;\n  return function () {\n    if (!done) {\n      done = true;\n      return fn();\n    }\n  };\n}\nconst init = once(() => 'ready');\nconsole.log(init(), init());",
+    "answer": "ready undefined",
+    "explanation": "The closure remembers done, so fn runs only on the first call. Later calls return undefined.",
+    "tag": "Closures"
+  },
+  {
+    "type": "mcq",
+    "text": "Why can closures cause high memory usage?",
+    "options": [
+      "They create new threads",
+      "Variables captured by a live closure can't be garbage collected",
+      "They copy the whole call stack",
+      "They disable the garbage collector"
+    ],
+    "answer": 1,
+    "explanation": "As long as the closure is reachable (for example from an event listener), its captured variables stay in memory.",
+    "tag": "Closures"
+  },
+  {
+    "type": "mcq",
+    "text": "What is a callback function?",
+    "options": [
+      "A function passed as an argument to another function, to be called later",
+      "A function that calls itself",
+      "A function that returns a number",
+      "A built-in browser API"
+    ],
+    "answer": 0,
+    "explanation": "Functions are first-class in JS, so they can be passed around. setTimeout, addEventListener and array.map all take callbacks.",
+    "tag": "Callbacks"
+  },
+  {
+    "type": "output",
+    "text": "What does this print?",
+    "code": "function greet(name, cb) {\n  cb('Hi ' + name);\n}\ngreet('Sam', msg => console.log(msg.toUpperCase()));",
+    "answer": "HI SAM",
+    "explanation": "greet calls the callback with 'Hi Sam', and the callback uppercases it.",
+    "tag": "Callbacks"
+  },
+  {
+    "type": "output",
+    "text": "What does this print?",
+    "code": "console.log('A');\nsetTimeout(() => console.log('B'), 0);\nconsole.log('C');",
+    "answer": "A\nC\nB",
+    "explanation": "The setTimeout callback goes to the task queue and only runs after the call stack (the synchronous code) is empty, even with a 0ms delay.",
+    "tag": "Event loop"
+  },
+  {
+    "type": "output",
+    "text": "What does this print? (event loop interview favourite)",
+    "code": "setTimeout(() => console.log(1), 0);\nPromise.resolve().then(() => console.log(2));\nconsole.log(3);",
+    "answer": "3\n2\n1",
+    "explanation": "Synchronous code runs first (3). Then the microtask queue runs (promise callback, 2) before the macrotask queue (setTimeout, 1).",
+    "tag": "Event loop"
+  },
+  {
+    "type": "mcq",
+    "text": "What is 'callback hell'?",
+    "options": [
+      "A callback that throws an error",
+      "Deeply nested callbacks that make code hard to read and maintain",
+      "A callback that never runs",
+      "Using too many arrow functions"
+    ],
+    "answer": 1,
+    "explanation": "It's also called the pyramid of doom. Promises and async/await flatten it. Interviewers often follow up by asking about inversion of control.",
+    "tag": "Callbacks"
+  }
+]

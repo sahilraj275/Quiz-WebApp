@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quiz Room</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+<style>
+:root{
+  --bg:#EDF0F5; --surface:#FFFFFF; --ink:#1B2340; --muted:#5D6785; --line:#D6DBE6;
+  --blue:#2B4FD8; --blue-soft:#E7ECFF; --green:#1C7F46; --green-soft:#E3F4EA;
+  --red:#BE3229; --red-soft:#FBE9E7; --gold:#FFD84D; --code:#1E2230;
+  --head:'Bricolage Grotesque',system-ui,sans-serif;
+  --body:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Consolas,'Courier New',monospace;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 var(--body)}
+a{color:var(--blue)}
+.top{display:flex;justify-content:space-between;align-items:center;max-width:860px;margin:0 auto;padding:16px 20px}
+.brand{font:800 22px/1 var(--head);letter-spacing:-.02em;color:var(--ink);text-decoration:none}
+.top nav a{font-weight:600;text-decoration:none;color:var(--muted)}
+main{max-width:860px;margin:0 auto;padding:4px 20px 120px}
+h1{font:800 clamp(28px,5vw,40px)/1.1 var(--head);letter-spacing:-.025em;margin:6px 0 8px}
+h2{font:600 21px/1.3 var(--head);margin:0 0 10px}
+.sub{color:var(--muted);margin:0 0 22px}
+.muted{color:var(--muted)}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:22px;margin-bottom:16px}
+.back{display:inline-block;margin-bottom:8px;font-weight:600;text-decoration:none}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.spread{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;flex-wrap:wrap}
+
+button,.btn{font:600 15px/1.2 var(--body);border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  padding:10px 16px;border-radius:10px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px}
+button:hover,.btn:hover{border-color:#AEB6CA}
+.btn-primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn-primary:hover{background:#2343BC;border-color:#2343BC}
+.btn-wa{background:#1DA851;border-color:#1DA851;color:#fff}
+.btn-danger{color:var(--red)}
+.btn-sm{padding:7px 12px;font-size:14px}
+.linkbtn{border:0;background:none;color:var(--blue);padding:4px 0}
+button:disabled{opacity:.55;cursor:not-allowed}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
+input,textarea,select{font:inherit;width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}
+textarea{resize:vertical}
+select{width:auto}
+.code-in{font:14px/1.55 var(--mono);background:var(--code);color:#E4E7F0;border-color:#2C3142;min-height:110px;tab-size:2}
+.code-in.small{min-height:70px}
+label.f{display:block;font-weight:600;font-size:14px;margin:16px 0 6px}
+.check{display:flex;gap:10px;align-items:center;margin-top:16px;font-size:15px}
+.check input{width:auto}
+.err{color:var(--red);font-weight:500;min-height:1.2em;margin:8px 0}
+
+/* questions */
+.q-title{font:600 18px/1.45 var(--body);margin:0 0 14px;white-space:pre-wrap}
+.badge{font-size:13px;font-weight:600;padding:5px 11px;border-radius:999px;white-space:nowrap}
+.badge.ok{background:var(--green-soft);color:var(--green)}
+.badge.no{background:var(--red-soft);color:var(--red)}
+.pill{font:500 12px/1 var(--body);padding:5px 9px;border-radius:999px;background:var(--blue-soft);color:var(--blue);vertical-align:middle}
+
+.codebox{background:var(--code);border-radius:12px;overflow:hidden;margin:0 0 16px;max-width:100%}
+.codebar{display:flex;gap:7px;align-items:center;padding:11px 14px;border-bottom:1px solid #2C3142;color:#8C93A8;font:13px var(--mono)}
+.dot{width:11px;height:11px;border-radius:50%;display:inline-block}
+.codebody{display:flex;overflow-x:auto;font:14px/1.75 var(--mono)}
+.gutter{padding:14px 10px 14px 16px;color:#596079;text-align:right;user-select:none;flex:none}
+.codebody pre{margin:0;padding:14px 18px 14px 8px;flex:1}
+.codebody pre,.codebody code{font:inherit}
+.codebody code.hljs{background:none;padding:0;overflow:visible}
+
+.opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;padding:14px 16px;border:1px solid var(--line);
+  border-radius:10px;margin-bottom:10px;background:#fff;font-weight:400;color:var(--ink)}
+.opt .k{font-weight:600;color:var(--muted);flex:none;width:16px}
+.opt .t{white-space:pre-wrap;word-break:break-word}
+.opt .note{margin-left:auto;font-size:14px;color:var(--muted);white-space:nowrap;padding-left:10px}
+button.opt:hover{border-color:#9FB0EA}
+.opt.pick{border-color:var(--blue);background:var(--blue-soft)}
+.opt.pick .k{color:var(--blue)}
+.opt.right{border-color:#8BCDA6;background:var(--green-soft)}
+.opt.right .note{color:var(--green);font-weight:600}
+.opt.wrong{border-color:#E7A39C;background:var(--red-soft)}
+.explain{background:#F3F5FA;border-left:3px solid var(--blue);padding:10px 14px;border-radius:0 8px 8px 0;margin-top:8px;color:#3D4766;white-space:pre-wrap}
+.hint{font-size:14px;color:var(--muted);margin:6px 0 0}
+.outcmp{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.outcmp .lbl{font-size:14px;font-weight:600;color:var(--muted);margin-bottom:6px}
+.outcmp pre{margin:0;padding:12px 14px;border-radius:10px;font:14px/1.6 var(--mono);white-space:pre-wrap;word-break:break-word}
+.okp{background:var(--green-soft);border:1px solid #8BCDA6}
+.nop{background:var(--red-soft);border:1px solid #E7A39C}
+@media (max-width:560px){.outcmp{grid-template-columns:1fr}}
+
+.submitbar{position:sticky;bottom:12px;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap;
+  background:var(--ink);color:#fff;border-radius:14px;padding:12px 14px 12px 20px;margin-top:20px;box-shadow:0 8px 24px rgba(27,35,64,.25)}
+.timer{font:500 16px var(--mono)}
+.timer.low{color:#FF9A8F}
+
+/* score + leaderboard */
+.scoreline{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;margin:4px 0 20px}
+.scoreline .big{font:800 44px/1 var(--head);letter-spacing:-.03em}
+.lb{list-style:none;margin:0;padding:0}
+.lb li{display:grid;grid-template-columns:64px 1fr auto auto;gap:16px;align-items:center;background:#fff;border:1px solid var(--line);
+  border-radius:12px;padding:12px 18px;margin-bottom:10px}
+.lb .rank{font:800 34px/1 var(--head);letter-spacing:-.03em;color:#9AA3BC}
+.lb .who{font-weight:600;font-size:17px;word-break:break-word}
+.lb .sc{font:800 22px/1 var(--head)}
+.lb .tm{color:var(--muted);font-size:14px;min-width:64px;text-align:right}
+.lb li.first{background:var(--gold);border-color:#E9C12E}
+.lb li.first .rank{color:var(--ink)}
+.lb li.you{outline:2px solid var(--blue);outline-offset:-1px}
+@media (max-width:520px){.lb li{grid-template-columns:44px 1fr auto;gap:10px}.lb .rank{font-size:26px}.lb .tm{grid-column:2;text-align:left;margin-top:-8px}}
+
+/* admin */
+.qrow h2{margin-bottom:4px}
+.meta{color:var(--muted);font-size:14px;margin:0 0 14px}
+.status-closed{color:var(--red);font-weight:600}
+.optin{display:flex;gap:10px;align-items:center;margin-bottom:8px}
+.optin input[type=radio]{width:20px;height:20px;flex:none;accent-color:var(--green)}
+.optin .k{font-weight:600;color:var(--muted);width:16px;flex:none}
+.icon{padding:6px 10px;font-size:14px}
+.savebar{position:sticky;bottom:12px;display:flex;justify-content:flex-end;gap:14px;align-items:center;background:#fff;border:1px solid var(--line);
+  border-radius:14px;padding:10px 12px;margin-top:20px;box-shadow:0 8px 24px rgba(27,35,64,.12)}
+.savebar .err{margin:0 auto 0 8px}
+details.card summary{cursor:pointer;font-weight:600}
+pre.ex{background:#F3F5FA;border-radius:10px;padding:12px;font:13px/1.5 var(--mono);overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:15px}
+th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line)}
+th{font-size:13px;color:var(--muted);font-weight:600}
+.tablewrap{overflow-x:auto}
+.bar{height:8px;border-radius:4px;background:var(--red-soft);overflow:hidden;min-width:80px}
+.bar span{display:block;height:100%;background:var(--green)}
+
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:10px 18px;
+  border-radius:10px;opacity:0;pointer-events:none;transition:.2s;z-index:10;font-weight:500}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){#toast{transition:none}}
+
+/* fun */
+.title-won{font:800 24px/1.2 var(--head);margin:-8px 0 14px}
+.badges{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 20px}
+.bdg{background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-weight:600;font-size:14px}
+.podium{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;align-items:end;margin:8px 0 18px}
+.podium .p{text-align:center;min-width:0}
+.podium .who{font-weight:600;word-break:break-word;margin-bottom:6px}
+.podium .blk{border-radius:12px 12px 4px 4px;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:10px 4px;font:800 28px/1 var(--head)}
+.podium .blk small{font:500 13px var(--body);margin-top:6px}
+.podium .p1 .blk{height:150px;background:var(--gold);border:1px solid #E9C12E}
+.podium .p2 .blk{height:115px;background:#E3E7EF;border:1px solid #C5CCDA}
+.podium .p3 .blk{height:90px;background:#F2D3B3;border:1px solid #DDB08A}
+.podium .crown{font-size:28px;line-height:1}
+.podium .av{font-size:30px;line-height:1.2}
+.avatars{border:0;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:6px}
+.avatars legend{padding:0}
+.avatars label{cursor:pointer}
+.avatars input{position:absolute;opacity:0;width:1px;height:1px}
+.avatars span{display:inline-flex;width:44px;height:44px;align-items:center;justify-content:center;font-size:24px;border:1px solid var(--line);border-radius:10px;background:#fff}
+.avatars input:checked+span{border:2px solid var(--blue);background:var(--blue-soft)}
+.avatars input:focus-visible+span{outline:3px solid var(--blue);outline-offset:2px}
+.reacts{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.react{padding:3px 9px;font-size:14px;font-weight:500;border-radius:999px;gap:4px}
+.react.me{border-color:var(--blue);background:var(--blue-soft)}
+.timer.shake{display:inline-block;animation:shake .5s ease-in-out infinite}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-3px) rotate(-2deg)}75%{transform:translateX(3px) rotate(2deg)}}
+@media (prefers-reduced-motion:reduce){.timer.shake{animation:none}}
+</style>
+</head>
+<body>
+<header class="top"><a href="#/" class="brand">Quiz Room</a><nav><a href="#/admin">Create quizzes</a></nav></header>
+<main id="app"></main>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+const $app = document.getElementById('app');
+const L = 'ABCDEFGH';
+const AVATARS = ['🦊', '🐼', '🤖', '👾', '🐱', '🦄', '🐸', '🐧', '🦁', '🐙', '🚀', '🧙']; // keep in sync with server.js
+const LANGS = ['javascript','typescript','python','java','c','cpp','csharp','sql','bash','html','css','json','plaintext'];
+let pollId = null, timerId = null, T = null, draft = null, baseUrl = location.origin;
+
+// ---------- utils ----------
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const pin = () => { try { return localStorage.getItem('adminPin') || ''; } catch { return ''; } };
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} },
+  del(k) { try { localStorage.removeItem(k); } catch {} },
+};
+const fmtTime = (s) => { s = Math.max(0, Math.round(s || 0)); const m = Math.floor(s / 60); return m ? `${m}m ${String(s % 60).padStart(2, '0')}s` : `${s}s`; };
+const fmtDate = (t) => new Date(t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+// random per-browser id so each device can react once per emoji (getRandomValues works on plain http, randomUUID doesn't)
+const devId = () => store.get('dev', null) || (store.set('dev', [...crypto.getRandomValues(new Uint8Array(8))].map((b) => b.toString(16).padStart(2, '0')).join('')), store.get('dev', 'none'));
+const loading = '<p class="muted">Loading…</p>';
+const quizLink = (id) => `${baseUrl}/#/q/${id}`;
+
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+async function api(method, url, body, asAdmin) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (asAdmin) headers['x-admin-pin'] = pin();
+  const res = await fetch(url, { method, headers, body: body ? JSON.stringify(body) : undefined });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) { const e = new Error(data.error || 'Something went wrong. Check that the quiz server is still running.'); e.status = res.status; throw e; }
+  return data;
+}
+
+async function copy(text) {
+  try { await navigator.clipboard.writeText(text); }
+  catch { // clipboard API needs https; fall back for plain http on office Wi-Fi
+    const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); ta.remove();
+  }
+  toast('Link copied');
+}
+
+function codeBlock(code, lang) {
+  const src = String(code || '').replace(/^\n+|\s+$/g, '');
+  if (!src) return '';
+  let html;
+  try { html = window.hljs && hljs.getLanguage(lang) ? hljs.highlight(src, { language: lang }).value : esc(src); }
+  catch { html = esc(src); }
+  const n = src.split('\n').length;
+  return `<div class="codebox"><div class="codebar"><span class="dot" style="background:#FF5F57"></span><span class="dot" style="background:#FEBC2E"></span><span class="dot" style="background:#28C840"></span><span style="margin-left:8px">${esc(lang)}</span></div>
+  <div class="codebody"><div class="gutter">${Array.from({ length: n }, (_, i) => i + 1).join('<br>')}</div><pre><code class="hljs">${html}</code></pre></div></div>`;
+}
+
+function showError(msg) {
+  $app.innerHTML = `<div class="card"><h2>Can't open this page</h2><p class="muted">${esc(msg)}</p><a class="btn" href="#/">Go to home</a></div>`;
+}
+
+// ---------- router ----------
+window.addEventListener('hashchange', route);
+(async () => {
+  if (['localhost', '127.0.0.1'].includes(location.hostname)) {
+    try { const i = await api('GET', '/api/info'); if (i.lanUrls[0]) baseUrl = i.lanUrls[0]; } catch {}
+  }
+  route();
+})();
+
+function route() {
+  clearInterval(pollId); clearInterval(timerId);
+  $app.onclick = $app.oninput = $app.onchange = $app.onkeydown = $app.onsubmit = null;
+  window.scrollTo(0, 0);
+  const p = (location.hash.slice(1) || '/').split('/').filter(Boolean);
+  if (p[0] === 'q') return takeQuiz(p[1]);
+  if (p[0] === 'r') return showSheet(p[1]);
+  if (p[0] === 'lb') return showLeaderboard(p[1]);
+  if (p[0] === 'admin') {
+    if (!pin()) return adminLogin();
+    if (p[1] === 'new') return builder();
+    if (p[1] === 'edit') return builder(p[2]);
+    if (p[1] === 'results') return adminResults(p[2]);
+    return adminHome();
+  }
+  return home();
+}
+
+// ---------- home ----------
+async function home() {
+  $app.innerHTML = loading;
+  let list = [];
+  try { list = await api('GET', '/api/quizzes'); } catch (e) { return showError(e.message); }
+  $app.innerHTML = `<h1>Pick a quiz</h1><p class="sub">No sign-up. Open a quiz, type your name and start.</p>
+  ${list.length ? list.map((q) => `<div class="card spread"><div><h2>${esc(q.title)}</h2>
+    <p class="meta">${q.topic ? esc(q.topic) + ', ' : ''}${q.count} question${q.count === 1 ? '' : 's'}${q.timeLimit ? `, ${q.timeLimit} min limit` : ''}
+      ${q.practice ? ' <span class="pill">Practice</span>' : ''}${q.locked ? ' <span class="pill">Access code</span>' : ''}</p></div>
+    <div class="row"><a class="btn" href="#/lb/${q.id}">Leaderboard</a><a class="btn btn-primary" href="#/q/${q.id}">Start quiz</a></div></div>`).join('')
+  : `<div class="card"><p class="muted" style="margin:0">No quizzes are open right now. If you got a link on WhatsApp, open that link directly.</p></div>`}`;
+}
+
+// ---------- taking a quiz ----------
+async function takeQuiz(id) {
+  $app.innerHTML = loading;
+  let quiz;
+  try { quiz = await api('GET', `/api/quizzes/${id}`); } catch (e) { return showError(e.message); }
+  const done = store.get('done:' + id, null);
+  if (quiz.closed) {
+    $app.innerHTML = `<div class="card"><h2>${esc(quiz.title)} is closed</h2><p class="muted">The quiz creator has stopped accepting answers.</p>
+    <div class="row">${done ? `<a class="btn" href="#/r/${done}">See your answer sheet</a>` : ''}<a class="btn btn-primary" href="#/lb/${id}">See leaderboard</a></div></div>`;
+    return;
+  }
+  const saved = store.get('draft:' + id, null);
+  if (saved && saved.sid) return loadSession(id, saved);
+  store.del('draft:' + id); // drafts from the old version have no server session
+
+  $app.innerHTML = `<h1>${esc(quiz.title)}</h1>
+  <p class="sub">${quiz.topic ? esc(quiz.topic) + '. ' : ''}${quiz.count} questions${quiz.timeLimit ? `, ${quiz.timeLimit} minute time limit` : ', no time limit'}.</p>
+  ${quiz.practice ? '<div class="card"><p style="margin:0"><span class="pill">Practice</span> Retake as often as you like. Practice scores are not ranked.</p></div>'
+    : done ? `<div class="card"><p style="margin:0">You already took this quiz on this device. <a href="#/r/${done}">See your answer sheet</a></p></div>` : ''}
+  <form class="card" id="nameForm" novalidate>
+    <label class="f" for="nm" style="margin-top:0">Your name</label>
+    <input id="nm" maxlength="40" autocomplete="name" placeholder="e.g. Sahil" value="${esc(store.get('quizName', ''))}">
+    <fieldset class="avatars"><legend class="f">Pick your avatar</legend>
+      ${AVATARS.map((av, i) => `<label><input type="radio" name="av" value="${av}" ${av === (store.get('avatar', '') || AVATARS[0]) ? 'checked' : ''}><span aria-label="Avatar ${i + 1}">${av}</span></label>`).join('')}
+    </fieldset>
+    ${quiz.locked ? '<label class="f" for="cd">Access code</label><input id="cd" maxlength="40" autocomplete="off" autocapitalize="off">' : ''}
+    <p class="err" id="nmErr"></p>
+    <button class="btn-primary" type="submit">Start quiz</button>
+    <p class="hint">${quiz.practice ? '' : 'Your name appears on the leaderboard.'}${quiz.timeLimit ? ' The timer starts when you press Start.' : ''}</p>
+  </form>`;
+  document.getElementById('nm').focus();
+  $app.onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button'); const err = document.getElementById('nmErr');
+    btn.disabled = true; err.textContent = '';
+    const cd = document.getElementById('cd');
+    try {
+      const name = document.getElementById('nm').value;
+      const avatar = (document.querySelector('input[name=av]:checked') || {}).value || '';
+      const r = await api('POST', `/api/quizzes/${id}/start`, { name, avatar, code: cd ? cd.value : '' });
+      store.set('quizName', name.trim()); store.set('avatar', avatar);
+      loadSession(id, { sid: r.sid });
+    } catch (ex) { err.textContent = ex.message; btn.disabled = false; }
+  };
+}
+
+const shuffled = (n) => { const a = [...Array(n).keys()]; for (let i = n - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+async function loadSession(id, saved) {
+  $app.innerHTML = loading;
+  let s;
+  try { s = await api('GET', `/api/sessions/${saved.sid}`); }
+  catch (e) { store.del('draft:' + id); return showError(e.message); }
+  const { quiz } = s, qs = quiz.questions;
+  const keep = (n) => [...Array(n).keys()];
+  // Answers are stored by original question/option index; shuffling only changes what is shown.
+  T = {
+    sid: s.sid, quiz, name: s.name, practice: s.practice,
+    startedAt: s.startedAt + (Date.now() - s.now), // server clock, shifted to this device's clock
+    answers: saved.answers || qs.map((q) => (q.type === 'mcq' ? null : '')),
+    order: saved.order || (quiz.shuffle ? shuffled(qs.length) : keep(qs.length)),
+    optOrder: saved.optOrder || qs.map((q) => (q.type !== 'mcq' ? null : quiz.shuffle ? shuffled(q.options.length) : keep(q.options.length))),
+  };
+  saveDraft(); renderTaking();
+}
+
+function saveDraft() { store.set('draft:' + T.quiz.id, { sid: T.sid, answers: T.answers, order: T.order, optOrder: T.optOrder }); }
+const isAnswered = (q, a) => (q.type === 'mcq' ? a !== null && a !== undefined : !!String(a || '').trim());
+
+function renderTaking() {
+  const { quiz } = T;
+  $app.innerHTML = `<h1>${esc(quiz.title)}</h1><p class="sub">Answering as <b>${esc(T.name)}</b>${quiz.topic ? `. Topic: ${esc(quiz.topic)}` : ''}${T.practice ? ' <span class="pill">Practice</span>' : ''}</p>
+  ${T.order.map((i, pos) => { const q = quiz.questions[i]; return `<section class="card" aria-labelledby="qt${i}">
+    <h2 class="q-title" id="qt${i}">${pos + 1}. ${esc(q.text)}</h2>${codeBlock(q.code, q.language)}
+    ${q.type === 'mcq'
+      ? T.optOrder[i].map((j, k) => `<button type="button" class="opt ${T.answers[i] === j ? 'pick' : ''}" data-q="${i}" data-o="${j}" aria-pressed="${T.answers[i] === j}"><span class="k">${L[k]}</span><span class="t">${esc(q.options[j])}</span></button>`).join('')
+      : `<label class="f" for="out${i}" style="margin-top:0">Type the exact output</label>
+         <textarea class="code-in small" id="out${i}" data-q="${i}" spellcheck="false" autocapitalize="off" autocomplete="off">${esc(T.answers[i])}</textarea>
+         <p class="hint">Write exactly what gets printed. Spaces and line breaks are treated the same.</p>`}
+  </section>`; }).join('')}
+  <div class="submitbar"><span id="prog"></span><span class="timer" id="timer"></span><button class="btn-primary" id="submitBtn" style="background:#fff;color:var(--ink);border-color:#fff">Submit answers</button></div>`;
+
+  const prog = () => {
+    const n = quiz.questions.filter((q, i) => isAnswered(q, T.answers[i])).length;
+    const total = quiz.questions.length;
+    const cheer = n === 0 ? "Let's go 🚀" : n >= total ? 'All done, hit submit 🎉' : n === total - 1 ? 'Last one! 🏁' : n >= total / 2 ? 'Halfway there 💪' : '';
+    document.getElementById('prog').textContent = `${n} of ${total} answered${cheer ? ` · ${cheer}` : ''}`;
+  };
+  prog();
+
+  $app.onclick = (e) => {
+    const b = e.target.closest('button.opt');
+    if (b) {
+      const qi = +b.dataset.q, oi = +b.dataset.o;
+      T.answers[qi] = oi; saveDraft(); prog();
+      b.parentElement.querySelectorAll('button.opt').forEach((x) => { const on = +x.dataset.o === oi; x.classList.toggle('pick', on); x.setAttribute('aria-pressed', on); });
+    }
+    if (e.target.id === 'submitBtn') submitQuiz(false);
+  };
+  $app.oninput = (e) => { if (e.target.matches('textarea[data-q]')) { T.answers[+e.target.dataset.q] = e.target.value; saveDraft(); prog(); } };
+
+  if (quiz.timeLimit) {
+    const tick = () => {
+      const left = quiz.timeLimit * 60 - Math.floor((Date.now() - T.startedAt) / 1000);
+      const el = document.getElementById('timer');
+      if (!el) return clearInterval(timerId);
+      el.textContent = `${fmtTime(left)} left`; el.classList.toggle('low', left <= 60); el.classList.toggle('shake', left <= 30);
+      if (left <= 0) { clearInterval(timerId); toast('Time is up. Submitting your answers.'); submitQuiz(true); }
+    };
+    tick(); timerId = setInterval(tick, 1000);
+  }
+}
+
+async function submitQuiz(auto) {
+  const { quiz } = T;
+  const missing = quiz.questions.filter((q, i) => !isAnswered(q, T.answers[i])).length;
+  if (!auto && missing && !confirm(`${missing} question${missing === 1 ? ' is' : 's are'} not answered yet. Submit anyway?`)) return;
+  const btn = document.getElementById('submitBtn'); if (btn) btn.disabled = true;
+  try {
+    const r = await api('POST', `/api/sessions/${T.sid}/submit`, { name: T.name, answers: T.answers });
+    clearInterval(timerId);
+    store.del('draft:' + quiz.id); if (!T.practice) store.set('done:' + quiz.id, r.id);
+    store.set('mine', [...store.get('mine', []), r.id].slice(-50));
+    store.set('celebrate', r.id); // confetti only right after submitting, not on every revisit
+    location.hash = `#/r/${r.id}`;
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    if (e.status === 409) {
+      const n = prompt(`${e.message}\nType a different name to submit your answers:`, T.name + ' 2');
+      if (n) { T.name = n; return submitQuiz(true); }
+    }
+    if (e.status === 404) store.del('draft:' + quiz.id);
+    toast(e.message);
+  }
+}
+
+// ---------- answer sheet ----------
+// rows: [{ tag, correct }] → card with a bar per tag, weakest first
+function tagCard(rows, title, note) {
+  const by = {};
+  for (const r of rows) if (r.tag) { const t = by[r.tag] || (by[r.tag] = { ok: 0, n: 0 }); t.n++; if (r.correct) t.ok++; }
+  const tags = Object.entries(by).sort((a, b) => a[1].ok / a[1].n - b[1].ok / b[1].n);
+  if (!tags.length) return '';
+  return `<div class="card"><h2>${title}</h2><p class="meta">${note}</p><div class="tablewrap"><table><tbody>
+    ${tags.map(([t, s]) => `<tr><td>${esc(t)}</td><td style="width:140px"><div class="bar"><span style="width:${(s.ok / s.n) * 100}%"></span></div></td><td style="width:70px">${s.ok}/${s.n}</td></tr>`).join('')}
+  </tbody></table></div></div>`;
+}
+
+function sheetItems(items) {
+  return items.map((q, i) => {
+    const blank = q.type === 'mcq' ? q.given === null : !String(q.given || '').trim();
+    const body = q.type === 'mcq'
+      ? q.options.map((o, j) => {
+          const isAns = j === q.answer, isPick = j === q.given;
+          const note = [isPick ? 'Selected' : '', isAns ? 'Correct answer' : ''].filter(Boolean).join(', ');
+          return `<div class="opt ${isAns ? 'right' : isPick ? 'wrong' : ''}"><span class="k">${L[j]}</span><span class="t">${esc(o)}</span>${note ? `<span class="note">${note}</span>` : ''}</div>`;
+        }).join('')
+      : `<div class="outcmp"><div><div class="lbl">Answer given</div><pre class="${q.correct ? 'okp' : 'nop'}">${esc(blank ? '(left blank)' : q.given)}</pre></div>
+         <div><div class="lbl">Expected output</div><pre class="okp">${esc(q.answer)}</pre></div></div>`;
+    return `<section class="card"><div class="spread"><h2 class="q-title">${i + 1}. ${esc(q.text)}${q.tag ? ` <span class="pill">${esc(q.tag)}</span>` : ''}</h2>
+      <span class="badge ${q.correct ? 'ok' : 'no'}">${q.correct ? 'Correct' : blank ? 'Not answered' : 'Incorrect'}</span></div>
+      ${codeBlock(q.code, q.language)}${body}${q.explanation ? `<div class="explain">${esc(q.explanation)}</div>` : ''}</section>`;
+  }).join('');
+}
+
+const funTitle = (pct) => pct === 100 ? 'Closure Wizard 🧙' : pct >= 80 ? 'Scope Ninja 🥷' : pct >= 60 ? 'Callback Captain 🧭'
+  : pct >= 40 ? 'Hoisted, Not Initialized 😅' : pct >= 20 ? 'Stuck in the TDZ 🧊' : 'ReferenceError 💀';
+
+function badges(a) {
+  const out = [];
+  if (a.total && a.score === a.total) out.push('🎯 Perfect');
+  const fast = a.timeLimit ? a.timeTaken < a.timeLimit * 30 : a.timeTaken < a.total * 20; // half the limit, or 20s a question
+  if (a.score && fast && !a.late) out.push('⚡ Speedrunner');
+  if (a.items) {
+    let run = 0, best = 0;
+    for (const q of a.items) { run = q.correct ? run + 1 : 0; best = Math.max(best, run); }
+    if (best >= 5 && a.score !== a.total) out.push(`🔥 Streak of ${best}`);
+    const by = {};
+    for (const q of a.items) if (q.tag) (by[q.tag] = by[q.tag] || []).push(q.correct);
+    for (const [t, r] of Object.entries(by)) if (r.length >= 2 && r.every(Boolean)) out.push(`🧠 ${t} master`);
+  }
+  return out;
+}
+
+function confetti(pct) {
+  const go = () => window.confetti({ particleCount: pct === 100 ? 220 : 110, spread: pct === 100 ? 100 : 70, origin: { y: 0.6 }, disableForReducedMotion: true });
+  if (window.confetti) return go();
+  const s = document.createElement('script');
+  s.src = 'https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.4/confetti.min.js';
+  s.onload = go; document.head.appendChild(s); // no confetti offline, nothing else breaks
+}
+
+async function showSheet(aid) {
+  $app.innerHTML = loading;
+  let a;
+  try { a = await api('GET', `/api/attempts/${aid}`, null, !!pin()); } catch (e) { return showError(e.message); }
+  const pct = a.total ? Math.round((a.score / a.total) * 1000) / 10 : 0;
+  $app.innerHTML = `<p class="muted" style="margin:0">${esc(a.quizTitle)}${a.topic ? ` (${esc(a.topic)})` : ''}</p>
+  <h1>${a.avatar ? a.avatar + ' ' : ''}${esc(a.name)}'s answer sheet</h1>
+  <div class="scoreline"><span class="big">${a.score}/${a.total}</span><span>${pct}% correct in ${fmtTime(a.timeTaken)}</span><span class="muted">Submitted ${fmtDate(a.submittedAt)}</span>
+    ${a.practice ? '<span class="pill">Practice, not ranked</span>' : ''}${a.late ? '<span class="badge no">Submitted after the time limit</span>' : ''}</div>
+  <p class="title-won">${funTitle(pct)}</p>
+  ${(() => { const b = badges(a); return b.length ? `<div class="badges">${b.map((x) => `<span class="bdg">${esc(x)}</span>`).join('')}</div>` : ''; })()}
+  <div class="row" style="margin-bottom:20px">${a.practice ? `<a class="btn btn-primary" href="#/q/${a.quizId}">Practice again</a>` : `<a class="btn btn-primary" href="#/lb/${a.quizId}">See leaderboard</a>`}</div>
+  ${a.items ? tagCard(a.items, 'Your topics', 'Weakest topics first. Revise these before your interview.') + sheetItems(a.items) : '<div class="card"><p class="muted" style="margin:0">Correct answers are hidden for this quiz. Your score is saved and shows on the leaderboard.</p></div>'}`;
+  if (store.get('celebrate', null) === aid) { store.del('celebrate'); if (pct >= 80) confetti(pct); }
+}
+
+// ---------- leaderboard ----------
+async function showLeaderboard(id) {
+  $app.innerHTML = loading;
+  const load = async () => {
+    let d;
+    try { d = await api('GET', `/api/quizzes/${id}/leaderboard?mine=${store.get('mine', []).join(',')}&dev=${devId()}`); }
+    catch (e) { clearInterval(pollId); return showError(e.message); }
+    const done = store.get('done:' + id, null);
+    $app.innerHTML = `<p class="muted" style="margin:0">${esc(d.title)}${d.topic ? ` (${esc(d.topic)})` : ''}</p>
+    <h1>Leaderboard</h1><p class="sub">Ranked by score, then by who finished faster. Late submissions go to the bottom. Updates on its own every few seconds.</p>
+    ${d.practice ? '<div class="card"><p style="margin:0">This quiz is in practice mode, so new attempts are not ranked.</p></div>' : ''}
+    ${(() => { // podium for the top 3 on-time finishers (late ones are sorted last already); shown 2-1-3
+      const top = d.entries.slice(0, 3).filter((e) => !e.late);
+      if (top.length < 2) return '';
+      const medal = ['🥇', '🥈', '🥉'];
+      return `<div class="podium" aria-hidden="true">${[1, 0, 2].map((r) => { const e = top[r]; return e ? `<div class="p p${r + 1}">
+        ${r === 0 ? '<div class="crown">👑</div>' : ''}${e.avatar ? `<div class="av">${e.avatar}</div>` : ''}<div class="who">${esc(e.name)}</div>
+        <div class="blk">${medal[r]}<small>${e.score}/${e.total} · ${fmtTime(e.timeTaken)}</small></div></div>` : '<div></div>'; }).join('')}</div>`;
+    })()}
+    ${d.entries.length ? `<ol class="lb">${d.entries.map((e, i) => `<li class="${i === 0 && !e.late ? 'first' : ''} ${e.you ? 'you' : ''}">
+      <span class="rank">${i < 3 && !e.late ? ['🥇', '🥈', '🥉'][i] : i + 1}</span><span class="who">${e.avatar ? e.avatar + ' ' : ''}${esc(e.name)} ${e.you ? '<span class="pill">You</span>' : ''}${e.late ? ' <span class="badge no">Late</span>' : ''}
+        <span class="reacts">${e.reactions.map((r) => `<button type="button" class="react ${r.me ? 'me' : ''}" data-rid="${e.rid}" data-emoji="${r.e}" aria-pressed="${r.me}" aria-label="React ${r.e} to ${esc(e.name)}">${r.e}${r.n ? ` ${r.n}` : ''}</button>`).join('')}</span></span>
+      <span class="sc">${e.score}/${e.total}</span><span class="tm">${fmtTime(e.timeTaken)}</span></li>`).join('')}</ol>`
+      : '<div class="card"><p class="muted" style="margin:0">No one has finished this quiz yet. Share the link to get people started.</p></div>'}
+    <div class="row" style="margin-top:16px">${done ? `<a class="btn" href="#/r/${done}">My answer sheet</a>` : `<a class="btn btn-primary" href="#/q/${id}">Take this quiz</a>`}</div>`;
+  };
+  $app.onclick = async (ev) => {
+    const b = ev.target.closest('button.react'); if (!b) return;
+    b.disabled = true;
+    try { await api('POST', '/api/reactions', { rid: b.dataset.rid, emoji: b.dataset.emoji, dev: devId() }); await load(); }
+    catch (e) { toast(e.message); b.disabled = false; }
+  };
+  await load();
+  pollId = setInterval(load, 15000); // every poll costs Redis commands on the free tier
+}
+
+// ---------- admin ----------
+function adminLogin(msg) {
+  $app.innerHTML = `<h1>Create and manage quizzes</h1><p class="sub">Only the person running the quiz needs this PIN. People taking quizzes never see it.</p>
+  <form class="card" id="pinForm" novalidate><label class="f" for="pinIn" style="margin-top:0">Admin PIN</label>
+  <input id="pinIn" type="password" inputmode="numeric" autocomplete="current-password">
+  <p class="err" id="pinErr">${esc(msg || '')}</p><button class="btn-primary" type="submit">Open dashboard</button>
+  <p class="hint">The PIN is shown in the terminal where the server was started.</p></form>`;
+  document.getElementById('pinIn').focus();
+  $app.onsubmit = async (e) => {
+    e.preventDefault();
+    try { localStorage.setItem('adminPin', document.getElementById('pinIn').value); } catch {}
+    try { await api('POST', '/api/admin/check', null, true); route(); }
+    catch (ex) { store.del('adminPin'); document.getElementById('pinErr').textContent = ex.message; }
+  };
+}
+
+async function adminCall(fn) {
+  try { return await fn(); }
+  catch (e) { if (e.status === 401) { store.del('adminPin'); adminLogin('That PIN is wrong.'); } else toast(e.message); throw e; }
+}
+
+async function adminHome() {
+  $app.innerHTML = loading;
+  let list; try { list = await adminCall(() => api('GET', '/api/admin/quizzes', null, true)); } catch { return; }
+  $app.innerHTML = `<div class="spread"><div><h1>Your quizzes</h1><p class="sub">Share a link on WhatsApp. People open it, type their name and start.</p></div>
+  <a class="btn btn-primary" href="#/admin/new">New quiz</a></div>
+  ${baseUrl === location.origin && ['localhost', '127.0.0.1'].includes(location.hostname) ? '<div class="card"><p style="margin:0">Heads up: links point to localhost, which phones can’t open. Connect this computer to the office Wi-Fi and reload.</p></div>' : ''}
+  ${list.length ? list.map((q) => `<div class="card qrow">
+    <h2>${esc(q.title)}</h2>
+    <p class="meta">${q.topic ? esc(q.topic) + ', ' : ''}${q.count} questions, ${q.attempts} submitted${q.closed ? ', <span class="status-closed">closed</span>' : ''}
+      ${q.practice ? ' <span class="pill">Practice</span>' : ''}${q.locked ? ' <span class="pill">Access code</span>' : ''}</p>
+    <div class="row">
+      <a class="btn btn-wa btn-sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(`Quiz time: ${q.title}\nOpen the link, type your name and start:\n${quizLink(q.id)}`)}">Share on WhatsApp</a>
+      <button class="btn-sm" data-copy="${q.id}">Copy link</button>
+      <a class="btn btn-sm" href="#/admin/results/${q.id}">Results</a>
+      <a class="btn btn-sm" href="#/lb/${q.id}">Leaderboard</a>
+      <a class="btn btn-sm" href="#/admin/edit/${q.id}">Edit</a>
+      <button class="btn-sm" data-toggle="${q.id}">${q.closed ? 'Reopen' : 'Close quiz'}</button>
+      <button class="btn-sm btn-danger" data-del="${q.id}" data-title="${esc(q.title)}">Delete</button>
+    </div></div>`).join('')
+  : '<div class="card"><p class="muted" style="margin:0">No quizzes yet. Press New quiz to make your first one.</p></div>'}
+  <p class="hint"><button class="linkbtn" id="logout">Lock dashboard on this device</button></p>`;
+
+  $app.onclick = async (e) => {
+    const t = e.target;
+    if (t.dataset.copy) copy(quizLink(t.dataset.copy));
+    if (t.dataset.toggle) { await adminCall(() => api('POST', `/api/admin/quizzes/${t.dataset.toggle}/toggle`, null, true)); adminHome(); }
+    if (t.dataset.del && confirm(`Delete "${t.dataset.title}" and all its results? This can't be undone.`)) {
+      await adminCall(() => api('DELETE', `/api/admin/quizzes/${t.dataset.del}`, null, true)); toast('Quiz deleted'); adminHome();
+    }
+    if (t.id === 'logout') { store.del('adminPin'); location.hash = '#/'; }
+  };
+}
+
+async function adminResults(id) {
+  $app.innerHTML = loading;
+  let quiz, attempts;
+  try {
+    [quiz, attempts] = await adminCall(() => Promise.all([api('GET', `/api/admin/quizzes/${id}`, null, true), api('GET', `/api/admin/quizzes/${id}/attempts`, null, true)]));
+  } catch { return; }
+  const n = attempts.length;
+  const avg = n ? (attempts.reduce((s, a) => s + a.score, 0) / n).toFixed(1) : '0';
+  $app.innerHTML = `<a class="back" href="#/admin">Back to quizzes</a>
+  <div class="spread"><div><h1>${esc(quiz.title)}</h1><p class="sub">${n} submitted, average score ${avg}/${quiz.questions.length}</p></div>
+    ${n ? '<button class="btn-sm" id="csv">Download CSV</button>' : ''}</div>
+  ${tagCard(attempts.flatMap((a) => a.items || []), 'Team topics', 'Share of correct answers per topic across everyone, weakest first.')}
+  <div class="card"><h2>People</h2>${n ? `<div class="tablewrap"><table><thead><tr><th>#</th><th>Name</th><th>Score</th><th>Time</th><th>Submitted</th><th></th></tr></thead><tbody>
+    ${attempts.map((a, i) => `<tr><td>${i + 1}</td><td><b>${esc(a.name)}</b>${a.practice ? ' <span class="pill">Practice</span>' : ''}${a.late ? ' <span class="badge no">Late</span>' : ''}</td><td>${a.score}/${a.total}</td><td>${fmtTime(a.timeTaken)}</td><td class="muted">${fmtDate(a.submittedAt)}</td>
+    <td><div class="row" style="flex-wrap:nowrap"><a class="btn btn-sm" href="#/r/${a.id}">Answer sheet</a><button class="btn-sm btn-danger" data-delatt="${a.id}" data-name="${esc(a.name)}">Remove</button></div></td></tr>`).join('')}
+    </tbody></table></div>` : '<p class="muted" style="margin:0">No one has submitted yet.</p>'}</div>
+  ${n ? `<div class="card"><h2>How each question went</h2><p class="meta">Low bars show the questions your team found hardest.</p><div class="tablewrap"><table><tbody>
+    ${quiz.questions.map((q, i) => { const c = attempts.filter((a) => a.items[i] && a.items[i].correct).length; return `<tr><td style="width:40px">${i + 1}</td><td>${esc(q.text.slice(0, 80))}${q.text.length > 80 ? '…' : ''}</td><td style="width:120px"><div class="bar"><span style="width:${(c / n) * 100}%"></span></div></td><td style="width:60px">${c}/${n}</td></tr>`; }).join('')}
+    </tbody></table></div></div>` : ''}`;
+  $app.onclick = async (e) => {
+    const t = e.target;
+    if (t.id === 'csv') {
+      // leading ' stops names like =HYPERLINK(...) running as Excel formulas
+      const cell = (v) => `"${String(v ?? '').replace(/^[=+\-@]/, "'$&").replace(/"/g, '""')}"`;
+      const head = ['Rank', 'Name', 'Score', 'Total', 'Percent', 'Time (s)', 'Late', 'Practice', 'Submitted', ...quiz.questions.map((q, i) => `Q${i + 1}`)];
+      const rows = attempts.map((a, i) => [i + 1, a.name, a.score, a.total, a.total ? Math.round((a.score / a.total) * 100) : 0, a.timeTaken,
+        a.late ? 'yes' : '', a.practice ? 'yes' : '', new Date(a.submittedAt).toISOString(), ...quiz.questions.map((_, j) => (a.items[j] ? (a.items[j].correct ? 1 : 0) : ''))]);
+      const blob = new Blob(['﻿' + [head, ...rows].map((r) => r.map(cell).join(',')).join('\r\n')], { type: 'text/csv' });
+      const link = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `${quiz.title.replace(/[^\w-]+/g, '_')}-results.csv` });
+      link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+    if (t.dataset.delatt && confirm(`Remove ${t.dataset.name}'s result? They will be able to take the quiz again with the same name.`)) {
+      await adminCall(() => api('DELETE', `/api/admin/attempts/${t.dataset.delatt}`, null, true)); toast('Result removed'); adminResults(id);
+    }
+  };
+}
+
+// ---------- quiz builder ----------
+const blankQ = (type = 'mcq') => ({ type, text: '', code: '', language: 'javascript', options: ['', '', '', ''], answer: type === 'mcq' ? 0 : '', explanation: '', tag: '' });
+const JSON_EXAMPLE = `[
+  {
+    "type": "mcq",
+    "text": "What will be the output?",
+    "code": "var a = 10;\\nfunction test() {\\n  console.log(a);\\n  var a = 20;\\n}\\ntest();",
+    "options": ["10", "20", "undefined", "ReferenceError"],
+    "answer": 2,
+    "explanation": "var a inside test() is hoisted, so a is undefined when logged.",
+    "tag": "Hoisting"
+  },
+  {
+    "type": "output",
+    "text": "What does this print?",
+    "code": "console.log(typeof null);",
+    "answer": "object",
+    "tag": "Types"
+  }
+]`;
+
+async function builder(id) {
+  $app.innerHTML = loading;
+  if (id) {
+    try { draft = await adminCall(() => api('GET', `/api/admin/quizzes/${id}`, null, true)); } catch { return; }
+    draft.questions = draft.questions.map((q) => ({ ...blankQ(q.type), ...q, options: q.options || ['', '', '', ''] }));
+    draft._id = id;
+  } else draft = { title: '', topic: '', timeLimit: 0, showAnswers: true, shuffle: true, practice: false, code: '', questions: [] };
+  renderBuilder();
+}
+
+function qForm(q, i) {
+  const last = draft.questions.length - 1;
+  const answerPart = q.type === 'mcq'
+    ? `<label class="f">Options <span class="muted" style="font-weight:400">(tick the correct one)</span></label>
+       ${q.options.map((o, j) => `<div class="optin"><input type="radio" name="ans${i}" data-qi="${i}" data-field="answer" value="${j}" ${Number(q.answer) === j ? 'checked' : ''} aria-label="Option ${L[j]} is correct">
+         <span class="k">${L[j]}</span><input data-qi="${i}" data-field="opt" data-oi="${j}" value="${esc(o)}" placeholder="Option ${L[j]}" aria-label="Option ${L[j]}">
+         ${q.options.length > 2 ? `<button type="button" class="icon" data-delopt="${i}:${j}" aria-label="Remove option ${L[j]}">✕</button>` : ''}</div>`).join('')}
+       ${q.options.length < 6 ? `<button type="button" class="linkbtn" data-addopt="${i}">Add option</button>` : ''}`
+    : `<label class="f" for="ans${i}">Expected output <span class="muted" style="font-weight:400">(spaces and line breaks are treated the same)</span></label>
+       <textarea class="code-in small" id="ans${i}" data-qi="${i}" data-field="answer" spellcheck="false" placeholder="undefined">${esc(q.answer)}</textarea>`;
+  return `<div class="card">
+    <div class="spread"><h2>Question ${i + 1} <span class="pill">${q.type === 'mcq' ? 'Multiple choice' : 'Type the output'}</span></h2>
+      <div class="row">${i > 0 ? `<button type="button" class="icon" data-move="${i}:-1" aria-label="Move up">↑</button>` : ''}${i < last ? `<button type="button" class="icon" data-move="${i}:1" aria-label="Move down">↓</button>` : ''}
+      <button type="button" class="icon" data-swap="${i}">Switch to ${q.type === 'mcq' ? 'type the output' : 'multiple choice'}</button>
+      <button type="button" class="icon btn-danger" data-delq="${i}">Delete</button></div></div>
+    <label class="f" for="tag${i}">Topic tag <span class="muted" style="font-weight:400">(optional, used for the per-topic score breakdown)</span></label>
+    <input id="tag${i}" data-qi="${i}" data-field="tag" list="taglist" maxlength="40" value="${esc(q.tag)}" placeholder="Closures" style="max-width:280px">
+    <label class="f" for="t${i}">Question</label><textarea id="t${i}" rows="2" data-qi="${i}" data-field="text" placeholder="What will be the output?">${esc(q.text)}</textarea>
+    <label class="f" for="c${i}">Code snippet <span class="muted" style="font-weight:400">(optional)</span></label>
+    <textarea class="code-in" id="c${i}" data-qi="${i}" data-field="code" spellcheck="false" placeholder="var a = 10;">${esc(q.code)}</textarea>
+    <div class="row" style="margin-top:8px"><label for="lang${i}" style="font-size:14px;font-weight:600">Language</label>
+      <select id="lang${i}" data-qi="${i}" data-field="language">${LANGS.map((l) => `<option ${l === q.language ? 'selected' : ''}>${l}</option>`).join('')}</select></div>
+    ${answerPart}
+    <label class="f" for="x${i}">Explanation shown after submitting <span class="muted" style="font-weight:400">(optional)</span></label>
+    <textarea id="x${i}" rows="2" data-qi="${i}" data-field="explanation">${esc(q.explanation)}</textarea>
+  </div>`;
+}
+
+function renderBuilder() {
+  const d = draft;
+  $app.innerHTML = `<a class="back" href="#/admin">Back to quizzes</a><h1>${d._id ? 'Edit quiz' : 'New quiz'}</h1>
+  ${d._id ? '<p class="sub">Results already submitted keep the questions they were answered against.</p>' : '<p class="sub">Add multiple-choice questions or "type the output" questions. Both can include a code snippet.</p>'}
+  <div class="card">
+    <label class="f" for="b-title" style="margin-top:0">Quiz title</label><input id="b-title" data-meta="title" value="${esc(d.title)}" placeholder="Javascript Mix (Block, Closure and GC)">
+    <label class="f" for="b-topic">Topic <span class="muted" style="font-weight:400">(optional)</span></label><input id="b-topic" data-meta="topic" value="${esc(d.topic)}" placeholder="Hoisting, closures, garbage collection">
+    <label class="f" for="b-time">Time limit in minutes <span class="muted" style="font-weight:400">(0 means no limit)</span></label><input id="b-time" data-meta="timeLimit" type="number" min="0" style="max-width:160px" value="${d.timeLimit || 0}">
+    <label class="check"><input type="checkbox" data-meta="showAnswers" ${d.showAnswers !== false ? 'checked' : ''}> Show correct answers right after someone submits</label>
+    <p class="hint">Turn this off if people take the quiz at different times, so answers don't get passed around.</p>
+    <label class="check"><input type="checkbox" data-meta="shuffle" ${d.shuffle !== false ? 'checked' : ''}> Shuffle questions and options for each person</label>
+    <p class="hint">Turn this off if a question refers to another one, or has options like "All of the above".</p>
+    <label class="check"><input type="checkbox" data-meta="practice" ${d.practice ? 'checked' : ''}> Practice mode: unlimited retakes, not ranked</label>
+    <p class="hint">Turn this on after the ranked round, so people can keep revising with the explanations.</p>
+    <label class="f" for="b-code">Access code <span class="muted" style="font-weight:400">(optional, people must type it to start)</span></label><input id="b-code" data-meta="code" maxlength="40" autocomplete="off" value="${esc(d.code || '')}" style="max-width:220px">
+  </div>
+  <datalist id="taglist">${[...new Set(d.questions.map((q) => q.tag).filter(Boolean))].map((t) => `<option value="${esc(t)}">`).join('')}</datalist>
+  <details class="card" ${d.questions.length ? "" : "open"}><summary>Add questions (JSON file or paste)</summary>
+    <p class="hint">Handy when you write questions in a doc or ask an AI to generate them. Use this shape, "answer" is the option position starting from 0:</p>
+    <pre class="ex">${esc(JSON_EXAMPLE)}</pre>
+    <textarea id="b-json" class="code-in" spellcheck="false" placeholder="Paste your JSON here"></textarea>
+    <p class="err" id="jsonErr"></p><div class="row"><button type="button" id="b-import">Add these questions</button>
+    <label class="btn">Or choose a .json file<input type="file" id="b-file" accept=".json,application/json" hidden></label></div>
+  </details>
+  <div id="b-qs">${d.questions.map(qForm).join('')}</div>
+  <div class="savebar"><span class="err" id="b-err"></span><span class="muted">${d.questions.length} question${d.questions.length === 1 ? '' : 's'}</span><button class="btn-primary" id="b-save">Save quiz</button></div>`;
+
+  $app.oninput = $app.onchange = async (e) => {
+    const el = e.target;
+    if (el.id === 'b-file') {
+      if (e.type !== 'change' || !el.files[0]) return; // file inputs fire both input and change; import once
+      document.getElementById('b-json').value = await el.files[0].text();
+      return document.getElementById('b-import').click();
+    }
+    if (el.dataset.meta) { const k = el.dataset.meta; d[k] = el.type === 'checkbox' ? el.checked : el.type === 'number' ? Number(el.value) : el.value; return; }
+    if (el.dataset.qi === undefined) return;
+    const q = d.questions[+el.dataset.qi], f = el.dataset.field;
+    if (f === 'opt') q.options[+el.dataset.oi] = el.value;
+    else if (f === 'answer' && el.type === 'radio') q.answer = Number(el.value);
+    else q[f] = el.value;
+  };
+  $app.onkeydown = (e) => { // Tab inside code boxes inserts spaces instead of leaving the box
+    if (e.key === 'Tab' && !e.shiftKey && e.target.classList.contains('code-in')) {
+      e.preventDefault(); const t = e.target, s = t.selectionStart;
+      t.value = t.value.slice(0, s) + '  ' + t.value.slice(t.selectionEnd); t.selectionStart = t.selectionEnd = s + 2;
+      t.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  };
+  $app.onclick = async (e) => {
+    const t = e.target.closest('button'); if (!t) return;
+    const ds = t.dataset, qs = d.questions;
+    if (ds.delq !== undefined) { if (qs.length === 1) return toast('A quiz needs at least one question'); qs.splice(+ds.delq, 1); return renderBuilder(); }
+    if (ds.move) { const [i, dir] = ds.move.split(':').map(Number); [qs[i], qs[i + dir]] = [qs[i + dir], qs[i]]; return renderBuilder(); }
+    if (ds.swap !== undefined) { const q = qs[+ds.swap]; q.type = q.type === 'mcq' ? 'output' : 'mcq'; q.answer = q.type === 'mcq' ? 0 : ''; if (!q.options || q.options.length < 2) q.options = ['', '', '', '']; return renderBuilder(); }
+    if (ds.addopt !== undefined) { qs[+ds.addopt].options.push(''); return renderBuilder(); }
+    if (ds.delopt) { const [i, j] = ds.delopt.split(':').map(Number); const q = qs[i]; q.options.splice(j, 1); if (q.answer === j) q.answer = 0; else if (q.answer > j) q.answer--; return renderBuilder(); }
+    if (t.id === 'b-import') {
+      const err = document.getElementById('jsonErr');
+      try {
+        let arr = JSON.parse(document.getElementById('b-json').value);
+        if (!Array.isArray(arr)) arr = arr.questions;
+        if (!Array.isArray(arr) || !arr.length) throw new Error('Expected a list of questions in square brackets [ ].');
+        const added = arr.map((q) => ({ ...blankQ(q.type === 'output' ? 'output' : 'mcq'), ...q, type: q.type === 'output' ? 'output' : 'mcq', options: Array.isArray(q.options) ? q.options.map(String) : ['', '', '', ''] }));
+        const firstEmpty = !qs.length || (qs.length === 1 && !qs[0].text.trim());
+        d.questions = firstEmpty ? added : qs.concat(added);
+        renderBuilder(); toast(`Added ${added.length} question${added.length === 1 ? '' : 's'}`);
+      } catch (ex) { err.textContent = 'That JSON could not be read: ' + ex.message; }
+      return;
+    }
+    if (t.id === 'b-save') {
+      t.disabled = true; document.getElementById('b-err').textContent = '';
+      const body = { title: d.title, topic: d.topic, timeLimit: d.timeLimit, showAnswers: d.showAnswers !== false,
+        shuffle: d.shuffle !== false, practice: !!d.practice, code: d.code || '', questions: d.questions };
+      try {
+        await adminCall(() => d._id ? api('PUT', `/api/admin/quizzes/${d._id}`, body, true) : api('POST', '/api/admin/quizzes', body, true));
+        toast('Quiz saved'); location.hash = '#/admin';
+      } catch (ex) { document.getElementById('b-err').textContent = ex.message; t.disabled = false; }
+    }
+  };
+}
+</script>
+</body>
+</html>
