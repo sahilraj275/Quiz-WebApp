@@ -89,9 +89,10 @@ async function main() {
   const merged = (await call('GET', '/api/leaderboard')).body;
   assert.strictEqual(merged.entries.length, 1);
   const me = merged.entries[0];
-  assert.deepStrictEqual([me.name, me.score, me.total, me.quizzes, me.wins, me.streak], ['Sahil', 5, 6, 3, 2, 2]);
-  assert.strictEqual(me.history.length, 3);
-  assert.deepStrictEqual(merged.topics.find((t) => t.tag === 'Closures'), { tag: 'Closures', name: 'Sahil', avatar: '🦊', ok: 3, n: 3 });
+  // Ravi's attempt was a retake of quiz 2 by the same person: only the first attempt (SAHIL, 1/2) counts
+  assert.deepStrictEqual([me.name, me.score, me.total, me.quizzes, me.wins, me.streak], ['Sahil', 3, 4, 2, 2, 2]);
+  assert.strictEqual(me.history.length, 2);
+  assert.strictEqual(merged.topics.find((t) => t.tag === 'Closures'), undefined, '2 answered is below the 3 needed');
   await call('DELETE', '/api/admin/aliases/ravi', null, true);
   assert.strictEqual((await call('GET', '/api/leaderboard')).body.entries.length, 2, 'undo splits them again');
 

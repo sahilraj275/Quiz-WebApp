@@ -994,12 +994,20 @@ async function adminCall(fn) {
 
 async function adminHome() {
   $app.innerHTML = loading;
-  let list, aliases;
-  try { [list, aliases] = await adminCall(() => Promise.all([api('GET', '/api/admin/quizzes', null, true), api('GET', '/api/admin/aliases', null, true)])); } catch { return; }
+  let list, aliases, board;
+  try { [list, aliases, board] = await adminCall(() => Promise.all([api('GET', '/api/admin/quizzes', null, true), api('GET', '/api/admin/aliases', null, true), api('GET', '/api/leaderboard')])); } catch { return; }
+  // likely the same person: equal once case, spaces, digits and repeated letters are ignored ("Aditya", "Adityaaa")
+  const squash = (n) => n.toLowerCase().replace(/[^a-z]/g, '').replace(/(.)\1+/g, '$1');
+  const dupes = Object.values(board.entries.reduce((g, e) => { const k = squash(e.name); if (k) (g[k] ||= []).push(e); return g; }, {}))
+    .filter((g) => g.length > 1).map((g) => g.sort((a, b) => a.name.length - b.name.length || b.quizzes - a.quizzes));
   $app.innerHTML = `<div class="split"><aside class="side">
     <div><p class="panel-label">Admin</p><h1>Your quizzes</h1><p class="sub">Share a link on WhatsApp. People open it, type their name and start.</p></div>
     <div class="stats"><div class="stat"><b>${list.length}</b><span>quizzes</span></div><div class="stat"><b>${list.reduce((n, q) => n + q.attempts, 0)}</b><span>submissions</span></div></div>
     <div class="stack"><a class="btn btn-primary" href="#/admin/new">+ New quiz</a><a class="btn" href="#/admin/insights">Team insights</a><button id="backup">Download backup</button></div>
+    ${dupes.length ? `<div class="card"><p class="panel-label">Possible duplicates</p><div class="stack">${dupes.map((g) => `<div>
+      <p style="margin:0 0 8px">${g.map((e) => `<b>${esc(e.name)}</b> <span class="muted">(${e.quizzes})</span>`).join(', ')}</p>
+      <button type="button" class="btn-sm" style="width:100%" data-mergeinto="${esc(g[0].name)}" data-names="${esc(JSON.stringify(g.slice(1).map((e) => e.name)))}">Merge into ${esc(g[0].name)}</button></div>`).join('')}</div>
+      <p class="hint">Only the first try at each quiz counts after merging, so retakes under a new name don't add up.</p></div>` : ''}
     <form class="card" id="aliasForm" novalidate><p class="panel-label">Same person, different names</p>
       <p class="hint" style="margin:0 0 10px">Played as "Sahil r" once and "Sahil" another time? Merge them. Only the overall leaderboard changes.</p>
       <label class="f" for="alFrom" style="margin-top:0">Played as</label><input id="alFrom" maxlength="40" placeholder="Sahil r">
@@ -1046,6 +1054,11 @@ async function adminHome() {
         download: `quiz-room-backup-${d.exportedAt.slice(0, 10)}.json` });
       link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000);
       toast(`Backup saved: ${Object.keys(d.quizzes).length} quizzes, ${Object.keys(d.attempts).length} results`);
+    }
+    if (t.dataset.mergeinto) {
+      t.disabled = true;
+      for (const from of JSON.parse(t.dataset.names)) await adminCall(() => api('POST', '/api/admin/aliases', { from, to: t.dataset.mergeinto }, true));
+      toast(`Merged into ${t.dataset.mergeinto}`); return adminHome();
     }
     if (t.dataset.unalias) { await adminCall(() => api('DELETE', `/api/admin/aliases/${encodeURIComponent(t.dataset.unalias)}`, null, true)); adminHome(); }
   };

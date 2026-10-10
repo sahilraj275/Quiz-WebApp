@@ -250,7 +250,10 @@ app.get('/api/leaderboard', h(async (req, res) => {
   const key = personKey(alias);
   const by = {}, tags = {}, played = []; // played: per quiz that anyone took, the set of people who took it
   quizzes.forEach((q, i) => {
-    const ranked = lists[i].filter((a) => !a.practice && !a.late).sort(rankSort);
+    // One attempt per person per quiz, their first: after a merge, a retake under another name must not add up.
+    const all = lists[i].filter((a) => !a.practice && !a.late), first = new Map();
+    for (const a of [...all].sort((x, y) => x.submittedAt - y.submittedAt)) if (!first.has(key(a.name))) first.set(key(a.name), a);
+    const ranked = all.filter((a) => first.get(key(a.name)) === a).sort(rankSort);
     if (ranked.length) played.push(new Set(ranked.map((a) => key(a.name))));
     ranked.forEach((a, place) => {
       const k = key(a.name), l = a.name.toLowerCase();
