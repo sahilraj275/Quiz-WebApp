@@ -1,5 +1,5 @@
 // Self-check: node test.js  (starts the server on a temp data file, runs the main flows, exits non-zero on failure)
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const assert = require('assert');
 const os = require('os');
 const path = require('path');
@@ -71,6 +71,61 @@ async function main() {
   assert.strictEqual((await react('b'.repeat(16))).body.n, 2);
   assert.strictEqual((await react('a'.repeat(16))).body.n, 1, 'second tap removes it');
   assert.strictEqual((await call('POST', '/api/reactions', { rid: lb.entries[0].rid, emoji: '💩', dev: 'a'.repeat(16) })).status, 400);
+
+  // overall leaderboard: sums a name across quizzes (case-insensitive), skips practice attempts
+  const { body: { id: id2 } } = await call('POST', '/api/admin/quizzes', { ...quiz, code: '' }, true);
+  const s3 = (await call('POST', `/api/quizzes/${id2}/start`, { name: 'SAHIL' })).body.sid;
+  await call('POST', `/api/sessions/${s3}/submit`, { answers: [1, 'nope'] });
+  const all = (await call('GET', '/api/leaderboard')).body;
+  assert.strictEqual(all.entries.length, 1);
+  assert.deepStrictEqual([all.entries[0].score, all.entries[0].total, all.entries[0].quizzes], [3, 4, 2]);
+
+  // admin merges "Ravi" into "Sahil": totals, wins, streak and topic champion follow
+  const s4 = (await call('POST', `/api/quizzes/${id2}/start`, { name: 'Ravi' })).body.sid;
+  await call('POST', `/api/sessions/${s4}/submit`, { answers: [1, '3 2 1'] });
+  assert.strictEqual((await call('GET', '/api/leaderboard')).body.entries.length, 2);
+  assert.strictEqual((await call('POST', '/api/admin/aliases', { from: 'ravi', to: 'Sahil' }, true)).status, 200);
+  assert.strictEqual((await call('POST', '/api/admin/aliases', { from: 'Sahil', to: 'SAHIL' }, true)).status, 400, 'same name');
+  const merged = (await call('GET', '/api/leaderboard')).body;
+  assert.strictEqual(merged.entries.length, 1);
+  const me = merged.entries[0];
+  assert.deepStrictEqual([me.name, me.score, me.total, me.quizzes, me.wins, me.streak], ['Sahil', 5, 6, 3, 2, 2]);
+  assert.strictEqual(me.history.length, 3);
+  assert.deepStrictEqual(merged.topics.find((t) => t.tag === 'Closures'), { tag: 'Closures', name: 'Sahil', avatar: '🦊', ok: 3, n: 3 });
+  await call('DELETE', '/api/admin/aliases/ravi', null, true);
+  assert.strictEqual((await call('GET', '/api/leaderboard')).body.entries.length, 2, 'undo splits them again');
+
+  // insights: every question across quizzes, hardest first
+  const ins = (await call('GET', '/api/admin/insights', null, true)).body;
+  assert.strictEqual(ins.questions.length, 4);
+  assert.strictEqual(ins.noExplain.length, 4, 'test questions have no explanations');
+  for (let i = 1; i < 4; i++) assert.ok(ins.questions[i - 1].ok / ins.questions[i - 1].n <= ins.questions[i].ok / ins.questions[i].n);
+
+  // mistakes by name: only once the quiz is closed, never from open quizzes
+  assert.strictEqual((await call('GET', '/api/mistakes?name=sahil')).body.length, 0, 'open quizzes stay hidden');
+  await call('POST', `/api/admin/quizzes/${id2}/toggle`, null, true);
+  const mis = (await call('GET', '/api/mistakes?name=sahil')).body;
+  assert.strictEqual(mis.length, 1);
+  assert.strictEqual(mis[0].id, undefined, 'attempt id is not leaked');
+  assert.strictEqual(mis[0].items.filter((x) => !x.correct).length, 1);
+
+  // revision quiz: hardest questions carry the full question (with answer) but not anyone's given answer
+  const hq = (await call('GET', '/api/admin/insights', null, true)).body.questions[0].question;
+  assert.ok(hq.text && hq.answer !== undefined && hq.given === undefined && hq.correct === undefined);
+
+  // backup: export everything, restore into an empty store with migrate.js, nothing lost
+  const backup = (await call('GET', '/api/admin/export', null, true)).body;
+  assert.strictEqual(Object.keys(backup.quizzes).length, 2);
+  assert.ok(Object.values(backup.attempts).some((a) => (a.reactions['🔥'] || []).length === 1), 'reactions kept');
+  const bFile = DATA_FILE + '.backup.json', rFile = DATA_FILE + '.restored.json';
+  await call('POST', '/api/admin/aliases', { from: 'ravi', to: 'Sahil' }, true);
+  fs.writeFileSync(bFile, JSON.stringify((await call('GET', '/api/admin/export', null, true)).body));
+  spawnSync(process.execPath, [path.join(__dirname, 'migrate.js'), bFile], { env: { ...process.env, DATA_FILE: rFile } });
+  const restored = JSON.parse(fs.readFileSync(rFile, 'utf8')).h;
+  assert.strictEqual(Object.keys(restored['qr:quizzes']).length, 2);
+  assert.strictEqual(Object.keys(restored['qr:aidx']).length, Object.keys(backup.attempts).length);
+  assert.strictEqual(restored['qr:alias'].ravi.to, 'Sahil');
+  fs.rmSync(bFile); fs.rmSync(rFile);
 
   // wrong PINs lock out after 10 tries
   for (let i = 0; i < 10; i++) await call('GET', '/api/admin/quizzes', null, 'wrong');

@@ -20,5 +20,6 @@ const newId = (len) => crypto.randomBytes(len).toString('hex').slice(0, len);
     if (!a.practice) await db.hsetnx(`qr:names:${a.quizId}`, a.name.toLowerCase(), { a: a.id });
     for (const [emoji, devs] of Object.entries(reactions)) for (const d of devs) await db.hset(`qr:react:${a.quizId}`, `${rest.rid}|${emoji}|${d}`, 1);
   }
+  for (const [l, a] of Object.entries(old.aliases || {})) await db.hset('qr:alias', l, a);
   console.log(`Copied ${Object.keys(old.quizzes || {}).length} quizzes and ${attempts.length} attempts into ${db.kind}.`);
 })().catch((e) => { console.error(e); process.exit(1); });

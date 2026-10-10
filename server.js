@@ -20,11 +20,13 @@ const SESSION_TTL = 24 * 3600; // an unfinished quiz can be resumed for a day
 // names:<quizId>     hash  lowercased name -> { a } (ranked attempts only; hsetnx makes "one per name" atomic)
 // Index values are objects, not bare id strings: Upstash JSON-parses values, so "12e45678" would come back as a number.
 // react:<quizId>     hash  "rid|emoji|device" -> 1
+// alias              hash  lowercased name -> { from, to }: counts "from" as "to" on the overall leaderboard
 // sess:<sid>         value session, expires after SESSION_TTL
 // pin:<ip>           counter of wrong admin PINs, expires after 15 min
 const K = {
   quizzes: 'qr:quizzes', att: (q) => `qr:att:${q}`, aidx: 'qr:aidx', ridx: 'qr:ridx',
   names: (q) => `qr:names:${q}`, react: (q) => `qr:react:${q}`, sess: (s) => `qr:sess:${s}`, pin: (ip) => `qr:pin:${ip}`,
+  alias: 'qr:alias',
 };
 
 const newId = (len) => crypto.randomBytes(len).toString('hex').slice(0, len);
@@ -221,6 +223,64 @@ app.get('/api/quizzes/:id/leaderboard', h(async (req, res) => {
   });
 }));
 
+// All-time ranking across every quiz (closed ones too): one row per person, summing ranked on-time attempts.
+// Admin-set aliases merge names ("Sahil r" -> "Sahil"). Also: wins, perfect scores, attendance streak, topic champions.
+// shortcut: reads every attempt of every quiz per request; add a running totals hash if this gets slow.
+const TOPIC_MIN = 3; // answered at least this many questions in a topic to be its champion
+// name -> who it counts as, after admin merges ("Sahil r" -> "sahil")
+const personKey = (alias) => (name) => { const l = name.toLowerCase(); return alias[l] ? alias[l].to.toLowerCase() : l; };
+
+// One person's answer sheets by name, for the mistakes page. Closed quizzes only: on open ones anyone could
+// type a colleague's name and read the answers before playing.
+app.get('/api/mistakes', h(async (req, res) => {
+  const name = cleanName(req.query.name);
+  if (!name) return res.json([]);
+  const [qs, alias] = await Promise.all([db.hgetall(K.quizzes), db.hgetall(K.alias)]);
+  const key = personKey(alias), who = key(name);
+  const quizzes = Object.values(qs).filter((q) => q.closed && q.showAnswers !== false);
+  const lists = await Promise.all(quizzes.map((q) => attemptsOf(q.id)));
+  res.json(lists.flat().filter((a) => !a.practice && key(a.name) === who)
+    .map(({ quizId, quizTitle, submittedAt, items }) => ({ quizId, quizTitle, submittedAt, items }))); // no attempt id: it opens the answer sheet
+}));
+app.get('/api/leaderboard', h(async (req, res) => {
+  const mine = new Set(String(req.query.mine || '').split(',').filter(Boolean));
+  const [qs, alias] = await Promise.all([db.hgetall(K.quizzes), db.hgetall(K.alias)]);
+  const quizzes = Object.values(qs).sort((a, b) => a.createdAt - b.createdAt);
+  const lists = await Promise.all(quizzes.map((q) => attemptsOf(q.id)));
+  const key = personKey(alias);
+  const by = {}, tags = {}, played = []; // played: per quiz that anyone took, the set of people who took it
+  quizzes.forEach((q, i) => {
+    const ranked = lists[i].filter((a) => !a.practice && !a.late).sort(rankSort);
+    if (ranked.length) played.push(new Set(ranked.map((a) => key(a.name))));
+    ranked.forEach((a, place) => {
+      const k = key(a.name), l = a.name.toLowerCase();
+      const p = by[k] ||= { name: alias[l] ? alias[l].to : a.name, score: 0, total: 0, quizzes: 0, timeTaken: 0,
+        wins: 0, perfect: 0, you: false, avatar: '', at: 0, history: [] };
+      p.score += a.score; p.total += a.total; p.quizzes++; p.timeTaken += a.timeTaken;
+      if (place === 0) p.wins++;
+      if (a.total && a.score === a.total) p.perfect++;
+      if (a.avatar && a.submittedAt > p.at) { p.avatar = a.avatar; p.at = a.submittedAt; } // latest avatar they picked
+      p.you ||= mine.has(a.id);
+      p.history.push({ quizId: q.id, title: q.title, score: a.score, total: a.total, place: place + 1, of: ranked.length });
+      for (const it of a.items || []) if (it.tag) {
+        const s = (tags[it.tag] ||= {})[k] ||= { ok: 0, n: 0 };
+        s.n++; if (it.correct) s.ok++;
+      }
+    });
+  });
+  const entries = Object.entries(by).map(([k, { at, ...p }]) => {
+    let streak = 0; // quizzes in a row, counting back from the latest one anyone took
+    for (let i = played.length - 1; i >= 0 && played[i].has(k); i--) streak++;
+    return { ...p, streak, history: p.history.reverse() };
+  }).sort((a, b) => b.score - a.score || a.timeTaken - b.timeTaken);
+  const topics = Object.entries(tags).map(([tag, people]) => {
+    const [k, s] = Object.entries(people).filter(([, s]) => s.n >= TOPIC_MIN)
+      .sort(([, a], [, b]) => b.ok / b.n - a.ok / a.n || b.ok - a.ok)[0] || [];
+    return k && { tag, name: by[k].name, avatar: by[k].avatar, ok: s.ok, n: s.n };
+  }).filter(Boolean).sort((a, b) => a.tag.localeCompare(b.tag));
+  res.json({ quizzes: quizzes.length, entries, topics });
+}));
+
 // Toggle one emoji reaction on a leaderboard entry.
 // ponytail: dev is a random id from the browser, so a determined person can fake extra reactions; fine for office fun
 app.post('/api/reactions', h(async (req, res) => {
@@ -286,6 +346,64 @@ app.delete('/api/admin/quizzes/:id', admin, h(async (req, res) => {
   await db.del(K.att(id), K.names(id), K.react(id));
   await db.hdel(K.quizzes, id);
   res.json({ ok: true }); // unfinished sessions just expire on their own
+}));
+
+app.get('/api/admin/aliases', admin, h(async (req, res) => {
+  res.json(Object.values(await db.hgetall(K.alias)).sort((a, b) => a.to.localeCompare(b.to)));
+}));
+
+app.post('/api/admin/aliases', admin, h(async (req, res) => {
+  const from = cleanName(req.body.from); let to = cleanName(req.body.to);
+  if (!from || !to) return res.status(400).json({ error: 'Type both names.' });
+  const all = await db.hgetall(K.alias);
+  to = (all[to.toLowerCase()] || {}).to || to; // "a -> b" when "b -> c" exists means "a -> c"
+  if (from.toLowerCase() === to.toLowerCase()) return res.status(400).json({ error: 'Those are the same name.' });
+  await db.hset(K.alias, from.toLowerCase(), { from, to });
+  // anything that pointed at "from" now points at "to", so there are never chains
+  for (const [l, a] of Object.entries(all)) if (a.to.toLowerCase() === from.toLowerCase()) await db.hset(K.alias, l, { ...a, to });
+  res.json({ ok: true });
+}));
+
+app.delete('/api/admin/aliases/:from', admin, h(async (req, res) => {
+  await db.hdel(K.alias, String(req.params.from).toLowerCase());
+  res.json({ ok: true });
+}));
+
+// Across all quizzes: how often each question was answered right (hardest first), plus every tagged answer for topic bars.
+app.get('/api/admin/insights', admin, h(async (req, res) => {
+  const quizzes = Object.values(await db.hgetall(K.quizzes));
+  const lists = await Promise.all(quizzes.map((q) => attemptsOf(q.id)));
+  const questions = [], topics = [];
+  quizzes.forEach((q, i) => {
+    const stats = {};
+    for (const a of lists[i]) (a.items || []).forEach((it, j) => {
+      const { given, correct, ...question } = it; // eslint-disable-line no-unused-vars
+      const s = stats[j] ||= { quizId: q.id, quiz: q.title, text: it.text, question, ok: 0, n: 0 };
+      s.n++; if (it.correct) s.ok++;
+      if (it.tag) topics.push({ tag: it.tag, correct: it.correct });
+    });
+    questions.push(...Object.values(stats));
+  });
+  questions.sort((a, b) => a.ok / a.n - b.ok / b.n || b.n - a.n);
+  const noExplain = quizzes.sort((a, b) => b.createdAt - a.createdAt).flatMap((q) => q.questions
+    .flatMap((x, i) => (x.explanation ? [] : [{ quizId: q.id, quiz: q.title, n: i + 1, text: x.text }])));
+  res.json({ questions: questions.slice(0, 15), topics, noExplain });
+}));
+
+// Everything in one file, in the data.json shape migrate.js reads, so a backup restores with: node migrate.js backup.json
+app.get('/api/admin/export', admin, h(async (req, res) => {
+  const [quizzes, aliases] = await Promise.all([db.hgetall(K.quizzes), db.hgetall(K.alias)]);
+  const attempts = {};
+  await Promise.all(Object.keys(quizzes).map(async (id) => {
+    const [atts, reacts] = await Promise.all([attemptsOf(id), db.hgetall(K.react(id))]);
+    const byRid = {};
+    for (const a of atts) { a.reactions = {}; byRid[a.rid] = a; attempts[a.id] = a; }
+    for (const f of Object.keys(reacts)) { // "rid|emoji|device"
+      const [rid, emoji, dev] = f.split('|'), a = byRid[rid];
+      if (a) (a.reactions[emoji] ||= []).push(dev);
+    }
+  }));
+  res.json({ exportedAt: new Date().toISOString(), quizzes, attempts, aliases });
 }));
 
 app.get('/api/admin/quizzes/:id/attempts', admin, h(async (req, res) => {

@@ -35,6 +35,9 @@ You can also paste many questions at once as JSON (format shown in the quiz edit
 - **Locally:** `quiz-data.json` next to `server.js`. Back it up to keep results.
 - **On Vercel:** Upstash Redis (set automatically when the env vars below exist).
 
+**Backups:** on the admin page, press **Download backup** now and then. To restore one, run
+`node migrate.js quiz-room-backup-YYYY-MM-DD.json` (with the Upstash env vars set to restore into Redis).
+
 Coming from the old version? Run `node migrate.js` once to copy `data.json` into the
 current store (run it with the Upstash env vars set to copy into Redis instead).
 
