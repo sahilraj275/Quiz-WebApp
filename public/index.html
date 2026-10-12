@@ -436,13 +436,6 @@ function showError(msg) {
 }
 
 // ---------- router ----------
-window.addEventListener('hashchange', route);
-(async () => {
-  if (['localhost', '127.0.0.1'].includes(location.hostname)) {
-    try { const i = await api('GET', '/api/info'); if (i.lanUrls[0]) baseUrl = i.lanUrls[0]; } catch {}
-  }
-  route();
-})();
 
 // After a page renders: name the tab after it, move focus to its heading (screen readers hear the new page), fade it in.
 let fresh = false;
@@ -1288,6 +1281,16 @@ function renderBuilder() {
     }
   };
 }
+
+// ---------- start ----------
+// Last on purpose: route() runs synchronously on a live site (no /api/info wait), so every let/const above must already exist.
+window.addEventListener('hashchange', route);
+(async () => {
+  if (['localhost', '127.0.0.1'].includes(location.hostname)) {
+    try { const i = await api('GET', '/api/info'); if (i.lanUrls[0]) baseUrl = i.lanUrls[0]; } catch {}
+  }
+  route();
+})();
 </script>
 </body>
 </html>
